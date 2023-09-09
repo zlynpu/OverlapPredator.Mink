@@ -2,6 +2,8 @@
 import os, time, glob, random, pickle, copy, torch
 import numpy as np
 import open3d
+import matplotlib.image as image
+from util.uio import process_image
 from scipy.spatial.transform import Rotation
 import MinkowskiEngine as ME
 
@@ -96,6 +98,18 @@ class KITTIDataset(Dataset):
         fname0 = self._get_velodyne_fn(drive, t0)
         fname1 = self._get_velodyne_fn(drive, t1)
 
+        image_file0 = fname0.replace(".bin", ".png")
+        image_file1 = fname0.replace(".bin", ".png")
+
+        p_image = image.imread(image_file0)
+        if (p_image.shape[0] != self.config.image_H or p_image.shape[1] != self.config.image_W):
+            p_image = process_image(image=p_image, aim_H=self.config.image_H, aim_W=self.config.image_W)
+        p_image = np.transpose(p_image, axes=(2, 0, 1))
+        q_image = image.imread(image_file1)
+        if (q_image.shape[0] != self.config.image_H or q_image.shape[1] != self.config.image_W):
+            q_image = process_image(image=q_image, aim_H=self.config.image_H, aim_W=self.config.image_W)
+        q_image = np.transpose(q_image, axes=(2, 0, 1))
+
         # extract xyz
         xyz0 = np.fromfile(fname0, dtype=np.float32).reshape(-1, 4)[:,:3]
         xyz1 = np.fromfile(fname1, dtype=np.float32).reshape(-1, 4)[:,:3]
@@ -178,7 +192,7 @@ class KITTIDataset(Dataset):
         rot, trans = to_tensor(rot), to_tensor(trans)
 
 
-        return src_xyz, tgt_xyz, src_coords, tgt_coords, src_feats, tgt_feats, matching_inds, rot, trans, scale
+        return src_xyz, tgt_xyz, src_coords, tgt_coords, src_feats, tgt_feats, matching_inds, rot, trans, scale, p_image, q_image
 
 
     def apply_transform(self, pts, trans):

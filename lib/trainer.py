@@ -127,7 +127,10 @@ class Trainer(object):
                 input_dict['tgt_F'].to(self.device),
                 coordinates=input_dict['tgt_C'].to(self.device))
             
-            src_feats, tgt_feats, scores_overlap, scores_saliency= self.model(sinput_src, sinput_tgt)
+            image0 = input_dict['image0'].to(self.device)
+            image1 = input_dict['image0'].to(self.device)
+            
+            src_feats, tgt_feats, scores_overlap, scores_saliency= self.model(sinput_src, sinput_tgt, image0, image1)
             src_pcd, tgt_pcd = input_dict['pcd_src'].to(self.device), input_dict['pcd_tgt'].to(self.device)
             c_rot = input_dict['rot'].to(self.device)
             c_trans = input_dict['trans'].to(self.device)

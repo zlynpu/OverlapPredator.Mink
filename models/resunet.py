@@ -1,9 +1,10 @@
-# -*- coding: future_fstrings -*-
 import torch
 import MinkowskiEngine as ME
 import MinkowskiEngine.MinkowskiFunctional as MEF
 from models.common import get_norm
 from models.gcn import GCN
+from models.attention_fusion import AttentionFusion
+from models.Img_Encoder import ImageEncoder
 import torch.nn.functional as F
 
 from models.residual_block import get_block
@@ -146,11 +147,28 @@ class ResUNet2(ME.MinkowskiNetwork):
 		self.gnn = GCN(config.num_head,config.gnn_feats_dim, config.dgcnn_k, config.nets)
 		self.proj_gnn = nn.Conv1d(config.gnn_feats_dim,config.gnn_feats_dim,kernel_size=1, bias=True)
 		self.proj_score = nn.Conv1d(config.gnn_feats_dim,1,kernel_size=1,bias=True)
+
+		###############
+		# image-pointcloud fusion model
+		self.attention_fusion = AttentionFusion(
+        	dim=128,  # the image channels
+        	depth=1,  # depth of net (self-attention - Processing的数量)
+        	latent_dim=CHANNELS[4],  # the PC channels
+        	cross_heads=1,  # number of heads for cross attention. paper said 1
+        	latent_heads=8,  # number of heads for latent self attention, 8
+        	cross_dim_head=int(CHANNELS[4]/2),  # number of dimensions per cross attention head
+        	latent_dim_head=int(CHANNELS[4]/2),  # number of dimensions per latent self attention head
+    	)
+
+		################
+		# preprocess image
+		self.img_encoder = ImageEncoder()
+		
+	def forward(self, stensor_src, stensor_tgt, src_image, tgt_image):
+		################################
+		# encode image(only consider single scale)
 		
 
-
-
-	def forward(self, stensor_src, stensor_tgt):
 		################################
 		# encode src
 		src_s1 = self.conv1(stensor_src)

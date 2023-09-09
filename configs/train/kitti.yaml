@@ -50,10 +50,10 @@ optimiser:
 dataset:
   dataset: kitti
   benchmark: odometryKITTI
-  root: /net/pf-pc27/scratch2/kitti
+  root: /home/zhangliyuan/dataset/Kitti/Kitti
   voxel_size: 0.3
   batch_size: 1 
-  num_workers: 6
+  num_workers: 8
   augment_noise: 0.01
   augment_shift_range: 2.0 
   augment_scale_max: 1.2
