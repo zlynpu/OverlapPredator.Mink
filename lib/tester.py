@@ -75,47 +75,60 @@ class KITTITester(Trainer):
         rot_gt, trans_gt =[],[]
         with torch.no_grad():
             for _ in tqdm(range(num_iter)): # loop through this epoch
-                inputs = c_loader_iter.next()
+                input_dict = c_loader_iter.next()
                 ###############################################
                 # forward pass
-                for k, v in inputs.items():  
-                    if type(v) == list:
-                        inputs[k] = [item.to(self.device) for item in v]
-                    else:
-                        inputs[k] = v.to(self.device)
+                # for k, v in inputs.items():  
+                #     if type(v) == list:
+                #         inputs[k] = [item.to(self.device) for item in v]
+                #     else:
+                #         inputs[k] = v.to(self.device)
+                sinput_src = ME.SparseTensor(
+                    input_dict['src_F'].to(self.device),
+                    coordinates=input_dict['src_C'].to(self.device))
+                sinput_tgt = ME.SparseTensor(
+                    input_dict['tgt_F'].to(self.device),
+                    coordinates=input_dict['tgt_C'].to(self.device))
 
-                feats, scores_overlap, scores_saliency = self.model(inputs)  #[N1, C1], [N2, C2]
-                scores_overlap = scores_overlap.detach().cpu()
-                scores_saliency = scores_saliency.detach().cpu()
+                image0 = input_dict['image0'].to(self.device)
+                image1 = input_dict['image0'].to(self.device)
 
-                len_src = inputs['stack_lengths'][0][0]
-                c_rot, c_trans = inputs['rot'], inputs['trans']
+                # src_feats, tgt_feats, scores_overlap, scores_saliency = self.model(sinput_src, sinput_tgt, image0, image1)  #[N1, C1], [N2, C2]
+                src, tgt = self.model(sinput_src, sinput_tgt, image0, image1)
+                src_feats, tgt_feats = src.F, tgt.F
+                # scores_overlap = scores_overlap.detach().cpu()
+                # scores_saliency = scores_saliency.detach().cpu()
+
+                len_src = input_dict['len_batch'][0][0]
+                c_rot, c_trans = input_dict['rot'], input_dict['trans']
                 rot_gt.append(c_rot.cpu().numpy())
                 trans_gt.append(c_trans.cpu().numpy())
-                src_feats, tgt_feats = feats[:len_src], feats[len_src:]
-                src_pcd , tgt_pcd = inputs['src_pcd_raw'], inputs['tgt_pcd_raw']
-                src_overlap, tgt_overlap = scores_overlap[:len_src], scores_overlap[len_src:]
-                src_saliency, tgt_saliency = scores_saliency[:len_src], scores_saliency[len_src:]
+                # src_feats, tgt_feats = feats[:len_src], feats[len_src:]
+                src_pcd , tgt_pcd = input_dict['pcd_src'], input_dict['pcd_tgt']
+                # src_overlap, tgt_overlap = scores_overlap[:len_src], scores_overlap[len_src:]
+                # src_saliency, tgt_saliency = scores_saliency[:len_src], scores_saliency[len_src:]
 
                 n_points = 5000
                 ########################################
                 # run random sampling or probabilistic sampling
-                # src_pcd, src_feats = random_sample(src_pcd, src_feats, n_points)
-                # tgt_pcd, tgt_feats = random_sample(tgt_pcd, tgt_feats, n_points)
+                # random sampling
+                src_pcd, src_feats = random_sample(src_pcd, src_feats, n_points)
+                tgt_pcd, tgt_feats = random_sample(tgt_pcd, tgt_feats, n_points)
+                
+                # probablistic sampling
+                # src_scores = src_overlap * src_saliency
+                # tgt_scores = tgt_overlap * tgt_saliency
 
-                src_scores = src_overlap * src_saliency
-                tgt_scores = tgt_overlap * tgt_saliency
-
-                if(src_pcd.size(0) > n_points):
-                    idx = np.arange(src_pcd.size(0))
-                    probs = (src_scores / src_scores.sum()).numpy().flatten()
-                    idx = np.random.choice(idx, size= n_points, replace=False, p=probs)
-                    src_pcd, src_feats = src_pcd[idx], src_feats[idx]
-                if(tgt_pcd.size(0) > n_points):
-                    idx = np.arange(tgt_pcd.size(0))
-                    probs = (tgt_scores / tgt_scores.sum()).numpy().flatten()
-                    idx = np.random.choice(idx, size= n_points, replace=False, p=probs)
-                    tgt_pcd, tgt_feats = tgt_pcd[idx], tgt_feats[idx]
+                # if(src_pcd.size(0) > n_points):
+                #     idx = np.arange(src_pcd.size(0))
+                #     probs = (src_scores / src_scores.sum()).numpy().flatten()
+                #     idx = np.random.choice(idx, size= n_points, replace=False, p=probs)
+                #     src_pcd, src_feats = src_pcd[idx], src_feats[idx]
+                # if(tgt_pcd.size(0) > n_points):
+                #     idx = np.arange(tgt_pcd.size(0))
+                #     probs = (tgt_scores / tgt_scores.sum()).numpy().flatten()
+                #     idx = np.random.choice(idx, size= n_points, replace=False, p=probs)
+                #     tgt_pcd, tgt_feats = tgt_pcd[idx], tgt_feats[idx]
 
                 ########################################
                 # run ransac 

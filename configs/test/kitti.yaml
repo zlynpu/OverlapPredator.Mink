@@ -1,11 +1,11 @@
 misc:
-  exp_dir: kitti_exp
-  mode: train
+  exp_dir: kitti_exp_test
+  mode: test
   gpu_mode: True
   verbose: True
   verbose_freq: 180
   snapshot_freq: 1
-  pretrain: ''
+  pretrain: '/home/zhangliyuan/mycode/OverlapPredator.Mink/snapshot/kitti_exp/checkpoints/IMFNet.pth'
 
 
 model:
@@ -65,4 +65,3 @@ demo:
   src_pcd: assets/cloud_bin_21.pth
   tgt_pcd: assets/cloud_bin_34.pth
   n_points: 1000
-

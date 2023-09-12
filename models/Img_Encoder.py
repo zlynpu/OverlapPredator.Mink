@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import model.resnet as resnet
+import models.resnet as resnet
 
 
 

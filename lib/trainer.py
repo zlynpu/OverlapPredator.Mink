@@ -76,16 +76,16 @@ class Trainer(object):
     def _load_pretrain(self, resume):
         if os.path.isfile(resume):
             state = torch.load(resume)
-            self.model.load_state_dict(state['state_dict'])
+            self.model.load_state_dict(state['state_dict'],False)
             self.start_epoch = state['epoch']
-            self.scheduler.load_state_dict(state['scheduler'])
-            self.optimizer.load_state_dict(state['optimizer'])
-            self.best_loss = state['best_loss']
-            self.best_recall = state['best_recall']
+            # self.scheduler.load_state_dict(state['scheduler'])
+            # self.optimizer.load_state_dict(state['optimizer'])
+            # self.best_loss = state['best_loss']
+            # self.best_recall = state['best_recall']
             
             self.logger.write(f'Successfully load pretrained model from {resume}!\n')
-            self.logger.write(f'Current best loss {self.best_loss}\n')
-            self.logger.write(f'Current best recall {self.best_recall}\n')
+            # self.logger.write(f'Current best loss {self.best_loss}\n')
+            # self.logger.write(f'Current best recall {self.best_recall}\n')
         else:
             raise ValueError(f"=> no checkpoint found at '{resume}'")
 
@@ -156,7 +156,10 @@ class Trainer(object):
                     input_dict['tgt_F'].to(self.device),
                     coordinates=input_dict['tgt_C'].to(self.device))
                 
-                src_feats, tgt_feats, scores_overlap, scores_saliency= self.model(sinput_src, sinput_tgt)
+                image0 = input_dict['image0'].to(self.device)
+                image1 = input_dict['image0'].to(self.device)
+                
+                src_feats, tgt_feats, scores_overlap, scores_saliency= self.model(sinput_src, sinput_tgt, image0, image1)
                 src_pcd, tgt_pcd = input_dict['pcd_src'].to(self.device), input_dict['pcd_tgt'].to(self.device)
                 c_rot = input_dict['rot'].to(self.device)
                 c_trans = input_dict['trans'].to(self.device)
