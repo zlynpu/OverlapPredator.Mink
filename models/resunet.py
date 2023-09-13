@@ -207,23 +207,22 @@ class ResUNet2(ME.MinkowskiNetwork):
 
 			feature_map = image_feature[batch_id, :, :, :].unsqueeze(0)
 			xy = point_in_image[:, :, :-1].unsqueeze(1)
-        	# print('xy:',xy.shape)
-			img_feature = grid_sample(feature_map, xy)
+			# 2. grid sample image feature map according to projection
+			img_feature = grid_sample(feature_map, xy, align_corners=False)
 			img_feature = img_feature.squeeze(2)
-        
+
+			# 3. fuse the point feature and the image map using attention model
 			fusion_feature = self.fusion_attention[id](point_features=point_feature, img_features=img_feature)
-        	# fusion_feature = torch.cat([img_feature, point_feature], dim=1)
-        	# print('fusion_feature:', fusion_feature.shape)
 
 			fusion_feature_batch.append(fusion_feature)
 			start += length
 			batch_id += 1
     
 		fusion_feature_batch = torch.cat(fusion_feature_batch,2)
-		# print('fusion_feature_batch:',fusion_feature_batch.shape)	
+			
 		return fusion_feature_batch
 
-	def forward(self, stensor_src, stensor_tgt, src_image, tgt_image):
+	def forward(self, stensor_src, stensor_tgt, src_image, tgt_image, image_shape, extrinsic, intrinsic):
 		################################
 		# encode image(only consider single scale)
 		src_image1, src_image2, src_image3 = self.img_encoder(src_image)
@@ -245,17 +244,32 @@ class ResUNet2(ME.MinkowskiNetwork):
 		src_s2 = self.norm2(src_s2)
 		src_s2 = self.block2(src_s2)
 		src = MEF.relu(src_s2)
+		src_fusion2 = self.local_fusion(coord=src.C, feature=src.F, image_feature=src_image1, 
+								  		image_shape=image_shape, extrinsic=extrinsic, intrinsic=intrinsic, 
+										id=0, voxel_size=self.voxel_size)
+    	# (B, 64, N)
+		src_fusion2 = src_fusion2.reshape(-1,src_fusion2.shape[-1])
+    	# (64, N*B)
+		src._F = src_fusion2.permute(1,0)
+		del src_fusion2
 
 		src_s4 = self.conv3(src)
 		src_s4 = self.norm3(src_s4)
 		src_s4 = self.block3(src_s4)
 		src = MEF.relu(src_s4)
+		src_fusion4 = self.local_fusion(coord=src.C, feature=src.F, image_feature=src_image1, 
+								  		image_shape=image_shape, extrinsic=extrinsic, intrinsic=intrinsic, 
+										id=1, voxel_size=self.voxel_size)
+    	# (B, 64, N)
+		src_fusion4 = src_fusion4.reshape(-1,src_fusion4.shape[-1])
+    	# (64, N*B)
+		src._F = src_fusion4.permute(1,0)
+		del src_fusion4
 
 		src_s8 = self.conv4(src)
 		src_s8 = self.norm4(src_s8)
 		src_s8 = self.block4(src_s8)
 		src = MEF.relu(src_s8)
-
 
 		################################
 		# encode tgt
@@ -268,21 +282,32 @@ class ResUNet2(ME.MinkowskiNetwork):
 		tgt_s2 = self.norm2(tgt_s2)
 		tgt_s2 = self.block2(tgt_s2)
 		tgt = MEF.relu(tgt_s2)
+		tgt_fusion2 = self.local_fusion(coord=tgt.C, feature=tgt.F, image_feature=tgt_image1, 
+								  		image_shape=image_shape, extrinsic=extrinsic, intrinsic=intrinsic, 
+										id=0, voxel_size=self.voxel_size)
+    	# (B, 64, N)
+		tgt_fusion2 = tgt_fusion2.reshape(-1,tgt_fusion2.shape[-1])
+    	# (64, N*B)
+		tgt._F = tgt_fusion2.permute(1,0)
+		del tgt_fusion2
 
 		tgt_s4 = self.conv3(tgt)
 		tgt_s4 = self.norm3(tgt_s4)
 		tgt_s4 = self.block3(tgt_s4)
 		tgt = MEF.relu(tgt_s4)
+		tgt_fusion4 = self.local_fusion(coord=tgt.C, feature=tgt.F, image_feature=tgt_image1, 
+								  		image_shape=image_shape, extrinsic=extrinsic, intrinsic=intrinsic, 
+										id=1, voxel_size=self.voxel_size)
+    	# (B, 64, N)
+		tgt_fusion4 = tgt_fusion4.reshape(-1,tgt_fusion4.shape[-1])
+    	# (64, N*B)
+		tgt._F = tgt_fusion4.permute(1,0)
+		del tgt_fusion4
 
 		tgt_s8 = self.conv4(tgt)
 		tgt_s8 = self.norm4(tgt_s8)
 		tgt_s8 = self.block4(tgt_s8)
 		tgt = MEF.relu(tgt_s8)
-
-		################################
-		# image-pointcloud fusion model
-		src._F = self.transformer(images=src_image, F=src.F,xyz=src.C)
-		tgt._F = self.transformer(images=tgt_image, F=tgt.F, xyz=tgt.C)
 
 		# ################################
 		# overlap attention module
@@ -329,6 +354,8 @@ class ResUNet2(ME.MinkowskiNetwork):
 		src_s4_tr = MEF.relu(src)
 
 		src = ME.cat(src_s4_tr, src_s4)
+		del src_s4_tr
+		del src_s4
 
 		src = self.conv3_tr(src)
 		src = self.norm3_tr(src)
@@ -336,6 +363,8 @@ class ResUNet2(ME.MinkowskiNetwork):
 		src_s2_tr = MEF.relu(src)
 
 		src = ME.cat(src_s2_tr, src_s2)
+		del src_s2_tr
+		del src_s2
 
 		src = self.conv2_tr(src)
 		src = self.norm2_tr(src)
@@ -343,9 +372,18 @@ class ResUNet2(ME.MinkowskiNetwork):
 		src_s1_tr = MEF.relu(src)
 
 		src = ME.cat(src_s1_tr, src_s1)
+		del src_s1
+		del src_s1_tr
+
 		src = self.conv1_tr(src)
 		src = MEF.relu(src)
+		src_fusion_final = self.local_fusion(coord=src.C, feature=src.F, image_feature=src_image_fusion, 
+									   		image_shape=image_shape, extrinsic=extrinsic, intrinsic=intrinsic, 
+											id=2, voxel_size=self.voxel_size)
+		src_fusion_final = src_fusion_final.reshape(-1,src_fusion_final.shape[-1])
+		src._F = src_fusion_final.permute(1,0)
 		src = self.final(src)
+		del src_fusion_final
 
 		################################
 		# decoder tgt
@@ -355,6 +393,8 @@ class ResUNet2(ME.MinkowskiNetwork):
 		tgt_s4_tr = MEF.relu(tgt)
 
 		tgt = ME.cat(tgt_s4_tr, tgt_s4)
+		del tgt_s4_tr
+		del tgt_s4
 
 		tgt = self.conv3_tr(tgt)
 		tgt = self.norm3_tr(tgt)
@@ -362,6 +402,8 @@ class ResUNet2(ME.MinkowskiNetwork):
 		tgt_s2_tr = MEF.relu(tgt)
 
 		tgt = ME.cat(tgt_s2_tr, tgt_s2)
+		del tgt_s2_tr
+		del tgt_s2
 
 		tgt = self.conv2_tr(tgt)
 		tgt = self.norm2_tr(tgt)
@@ -369,9 +411,18 @@ class ResUNet2(ME.MinkowskiNetwork):
 		tgt_s1_tr = MEF.relu(tgt)
 
 		tgt = ME.cat(tgt_s1_tr, tgt_s1)
+		del tgt_s1_tr
+		del tgt_s1
+
 		tgt = self.conv1_tr(tgt)
 		tgt = MEF.relu(tgt)
+		tgt_fusion_final = self.local_fusion(coord=tgt.C, feature=tgt.F, image_feature=tgt_image_fusion, 
+									   		image_shape=image_shape, extrinsic=extrinsic, intrinsic=intrinsic, 
+											id=2, voxel_size=self.voxel_size)
+		tgt_fusion_final = tgt_fusion_final.reshape(-1,tgt_fusion_final.shape[-1])
+		tgt._F = tgt_fusion_final.permute(1,0)
 		tgt = self.final(tgt)
+		del tgt_fusion_final
 
 		################################
 		# output features and scores
@@ -383,7 +434,7 @@ class ResUNet2(ME.MinkowskiNetwork):
 		src_saliency = torch.clamp(sigmoid(src_saliency.view(-1)),min=0,max=1)
 		tgt_overlap = torch.clamp(sigmoid(tgt_overlap.view(-1)),min=0,max=1)
 		tgt_saliency = torch.clamp(sigmoid(tgt_saliency.view(-1)),min=0,max=1)
-
+		
 		src_feats = F.normalize(src_feats, p=2, dim=1)
 		tgt_feats = F.normalize(tgt_feats, p=2, dim=1)
 

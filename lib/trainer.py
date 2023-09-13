@@ -129,8 +129,11 @@ class Trainer(object):
             
             image0 = input_dict['image0'].to(self.device)
             image1 = input_dict['image0'].to(self.device)
+            image_shape = input_dict['image_shape'].to(self.device)
+            extrinsic = input_dict['extrinsic'].to(self.device)
+            intrinsic = input_dict['intrinsic'].to(self.device)
             
-            src_feats, tgt_feats, scores_overlap, scores_saliency= self.model(sinput_src, sinput_tgt, image0, image1)
+            src_feats, tgt_feats, scores_overlap, scores_saliency= self.model(sinput_src, sinput_tgt, image0, image1, image_shape, extrinsic, intrinsic)
             src_pcd, tgt_pcd = input_dict['pcd_src'].to(self.device), input_dict['pcd_tgt'].to(self.device)
             c_rot = input_dict['rot'].to(self.device)
             c_trans = input_dict['trans'].to(self.device)
@@ -158,8 +161,11 @@ class Trainer(object):
                 
                 image0 = input_dict['image0'].to(self.device)
                 image1 = input_dict['image0'].to(self.device)
+                image_shape = input_dict['image_shape'].to(self.device)
+                extrinsic = input_dict['extrinsic'].to(self.device)
+                intrinsic = input_dict['intrinsic'].to(self.device)
                 
-                src_feats, tgt_feats, scores_overlap, scores_saliency= self.model(sinput_src, sinput_tgt, image0, image1)
+                src_feats, tgt_feats, scores_overlap, scores_saliency= self.model(sinput_src, sinput_tgt, image0, image1, image_shape, extrinsic, intrinsic)
                 src_pcd, tgt_pcd = input_dict['pcd_src'].to(self.device), input_dict['pcd_tgt'].to(self.device)
                 c_rot = input_dict['rot'].to(self.device)
                 c_trans = input_dict['trans'].to(self.device)

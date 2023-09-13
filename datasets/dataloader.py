@@ -7,7 +7,7 @@ import numpy as np
 
 
 def collate_pair_fn(list_data):
-    src_xyz, tgt_xyz, src_coords, tgt_coords, src_feats, tgt_feats, matching_inds, rot, trans, scale, p_image, q_image = list(zip(*list_data))
+    src_xyz, tgt_xyz, src_coords, tgt_coords, src_feats, tgt_feats, matching_inds, rot, trans, scale, p_image, q_image, image_shape, extrinsic, intrinsic = list(zip(*list_data))
 
     def to_tensor(x):
         if isinstance(x, torch.Tensor):
@@ -28,6 +28,7 @@ def collate_pair_fn(list_data):
     # add batch indice to matching_inds and image
     matching_inds_batch = []
     p_image_batch, q_image_batch = [], []
+    image_shape_batch, extrinsic_batch, intrinsic_batch = [], [], []
     len_batch = []
     curr_start_ind = torch.zeros((1,2))
     for batch_id, _ in enumerate(matching_inds):
@@ -41,11 +42,19 @@ def collate_pair_fn(list_data):
         
         # image batch
         p_image_batch.append(to_tensor(p_image[batch_id][None,:,:,:]))
-        q_image_batch.append(to_tensor(q_image[batch_id][None,:,:,:]))   
+        q_image_batch.append(to_tensor(q_image[batch_id][None,:,:,:])) 
+        image_shape_batch.append(to_tensor(image_shape[batch_id][None,:]))
+
+        # project batch
+        extrinsic_batch.append(to_tensor(extrinsic[batch_id][None,:,:]))
+        intrinsic_batch.append(to_tensor(intrinsic[batch_id][None,:,:]))
 
     matching_inds_batch = torch.cat(matching_inds_batch, 0).int()
     p_image_batch = torch.cat(p_image_batch,0).float()
     q_image_batch = torch.cat(q_image_batch,0).float()
+    image_shape_batch = torch.cat(image_shape_batch,0).float()
+    extrinsic_batch = torch.cat(extrinsic_batch,0).float()
+    intrinsic_batch = torch.cat(intrinsic_batch,0).float()
 
     return {
         'pcd_src': src_xyz,
@@ -61,6 +70,9 @@ def collate_pair_fn(list_data):
         'scale': scale[0],
         'image0': p_image_batch,
         'image1': q_image_batch,
+        'image_shape': image_shape_batch,
+        'extrinsic': extrinsic_batch,
+        'intrinsic': intrinsic_batch
     }
 
 

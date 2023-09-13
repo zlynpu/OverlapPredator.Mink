@@ -1,5 +1,5 @@
 misc:
-  exp_dir: kitti_exp
+  exp_dir: kitti_exp_LIfusion
   mode: train
   gpu_mode: True
   verbose: True

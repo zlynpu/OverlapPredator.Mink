@@ -12,7 +12,7 @@ if ROOT_DIR not in sys.path:
 
 class IA_Layer(nn.Module):
     def __init__(self, channels):
-        print('##############ADDITION ATTENTION(ADD)#########')
+        # print('##############ADDITION ATTENTION(ADD)#########')
         super(IA_Layer, self).__init__()
         self.ic, self.pc = channels
         rc = self.pc // 4
@@ -31,7 +31,7 @@ class IA_Layer(nn.Module):
         # print(img_feas)
         ri = self.fc1(img_feas_f)
         rp = self.fc2(point_feas_f)
-        att = F.sigmoid(self.fc3(F.tanh(ri + rp))) #BNx1
+        att = torch.sigmoid(self.fc3(torch.tanh(ri + rp))) #BNx1
         att = att.squeeze(1)
         att = att.view(batch, 1, -1) #B1N
         # print(img_feas.size(), att.size())

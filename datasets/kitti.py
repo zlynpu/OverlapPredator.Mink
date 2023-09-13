@@ -4,6 +4,7 @@ import numpy as np
 import open3d
 import matplotlib.image as image
 from util.uio import process_image
+from util.calibration import get_calib_from_file
 from scipy.spatial.transform import Rotation
 import MinkowskiEngine as ME
 
@@ -98,10 +99,18 @@ class KITTIDataset(Dataset):
         fname0 = self._get_velodyne_fn(drive, t0)
         fname1 = self._get_velodyne_fn(drive, t1)
 
+        parent = os.path.join(fname0, '..', '..')
+        parent = os.path.abspath(parent)
+        camera_file = os.path.join(parent, 'calib.txt')
+        result = get_calib_from_file(camera_file)
+        extrinsic = result['Tr_velo2cam']
+        intrinsic = result['P2']
+
         image_file0 = fname0.replace(".bin", ".png")
         image_file1 = fname0.replace(".bin", ".png")
 
         p_image = image.imread(image_file0)
+        image_shape = np.asarray(p_image.shape)
         if (p_image.shape[0] != self.config.image_H or p_image.shape[1] != self.config.image_W):
             p_image = process_image(image=p_image, aim_H=self.config.image_H, aim_W=self.config.image_W)
         p_image = np.transpose(p_image, axes=(2, 0, 1))
@@ -192,7 +201,7 @@ class KITTIDataset(Dataset):
         rot, trans = to_tensor(rot), to_tensor(trans)
 
 
-        return src_xyz, tgt_xyz, src_coords, tgt_coords, src_feats, tgt_feats, matching_inds, rot, trans, scale, p_image, q_image
+        return src_xyz, tgt_xyz, src_coords, tgt_coords, src_feats, tgt_feats, matching_inds, rot, trans, scale, p_image, q_image, image_shape, extrinsic, intrinsic
 
 
     def apply_transform(self, pts, trans):
