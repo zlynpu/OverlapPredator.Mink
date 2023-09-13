@@ -20,6 +20,9 @@ class ResUNet2(ME.MinkowskiNetwork):
 	CHANNELS = [None, 32, 64, 128, 256]
 	TR_CHANNELS = [None, 32, 64, 64, 128]
 
+	FUSION_IMG_CHANNELS = [64, 64, 32]
+	FUSION_POINT_CHANNELS = [64, 128, 64]
+
 	# To use the model, must call initialize_coords before forward pass.
 	# Once data is processed, call clear to reset the model before calling initialize_coords
 	def __init__(self,config,D=3):
@@ -28,6 +31,8 @@ class ResUNet2(ME.MinkowskiNetwork):
 		BLOCK_NORM_TYPE = self.BLOCK_NORM_TYPE
 		CHANNELS = self.CHANNELS
 		TR_CHANNELS = self.TR_CHANNELS
+		FUSION_IMG_CHANNELS = self.FUSION_IMG_CHANNELS
+		FUSION_POINT_CHANNELS = self.FUSION_POINT_CHANNELS
 		bn_momentum = config.bn_momentum
 		self.normalize_feature = config.normalize_feature
 		self.voxel_size = config.voxel_size
@@ -86,7 +91,11 @@ class ResUNet2(ME.MinkowskiNetwork):
 
 		###############
 		# image-pointcloud fusion model
-		
+		self.fusion_attention = nn.ModuleList()
+		for i in range(len(FUSION_IMG_CHANNELS)): 
+			self.fusion_attention.append(Local_Atten_Fusion_Conv(inplanes_I=FUSION_IMG_CHANNELS[i], 
+                                                           		inplanes_P=FUSION_POINT_CHANNELS[i],
+                                                           		outplanes=FUSION_POINT_CHANNELS[i]))
 
 		# adapt input tensor here
 		self.conv4_tr = ME.MinkowskiConvolutionTranspose(
@@ -161,8 +170,9 @@ class ResUNet2(ME.MinkowskiNetwork):
 		################
 		# preprocess image
 		self.img_encoder = ImageEncoder()
+		self.img_decoder = ImageDecoder()
 		
-	def local_fusion(self, coord, feature, image_feature, image_shape, extrinsic, intrinsic, id, voxel_size=0.025):
+	def local_fusion(self, coord, feature, image_feature, image_shape, extrinsic, intrinsic, id, voxel_size):
     	# batch ----- batch
 		lengths = []
 		max_batch = torch.max(coord[:, 0])
@@ -181,26 +191,21 @@ class ResUNet2(ME.MinkowskiNetwork):
 			point_coord = coord[start:end, 1:] * voxel_size
 			point_feature = feature[start:end, :].unsqueeze(0)
 			point_feature = point_feature.permute(0,2,1)
-
+			#############################
+			# 1. project point to image feature map
 			point_z = point_coord[:, -1]
-			# print('pointcoord',point_coord.shape)
 			one = torch.ones((point_coord.shape[0],1)).to(device)
-        	# print('one',one.shape)
 			point_in_lidar = torch.cat([point_coord, one],1).t()
-        	# print('point_in_lidar',point_in_lidar.shape)
 
 			point_in_camera = extrinsic[batch_id, :, :].mm(point_in_lidar)
 			point_in_image = intrinsic[batch_id, :, :].mm(point_in_camera)/point_z
 			point_in_image = point_in_image.t()
 			point_in_image[:, -1] = point_z
-
 			point_in_image[:, 0] = point_in_image[:, 0] * 2 / image_shape[batch_id, 0] - 1
 			point_in_image[:, 1] = point_in_image[:, 1] * 2 / image_shape[batch_id, 1] - 1
-
 			point_in_image = point_in_image.unsqueeze(0)
 
 			feature_map = image_feature[batch_id, :, :, :].unsqueeze(0)
-        	# print('feature_map_shape:',feature_map.shape)
 			xy = point_in_image[:, :, :-1].unsqueeze(1)
         	# print('xy:',xy.shape)
 			img_feature = grid_sample(feature_map, xy)
@@ -221,8 +226,13 @@ class ResUNet2(ME.MinkowskiNetwork):
 	def forward(self, stensor_src, stensor_tgt, src_image, tgt_image):
 		################################
 		# encode image(only consider single scale)
-		src_image = self.img_encoder(src_image)
-		tgt_image = self.img_encoder(tgt_image)
+		src_image1, src_image2, src_image3 = self.img_encoder(src_image)
+		tgt_image1, tgt_image2, tgt_image3 = self.img_encoder(tgt_image)
+
+		################################
+		# decode multi-scale image feature and fusion
+		src_image_fusion = self.img_decoder(src_image1, src_image2, src_image3)
+		tgt_image_fusion = self.img_decoder(tgt_image1, tgt_image2, tgt_image3)
 
 		################################
 		# encode src
