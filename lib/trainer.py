@@ -77,7 +77,7 @@ class Trainer(object):
         if os.path.isfile(resume):
             state = torch.load(resume)
             self.model.load_state_dict(state['state_dict'],False)
-            self.start_epoch = state['epoch']
+            # self.start_epoch = state['epoch']
             # self.scheduler.load_state_dict(state['scheduler'])
             # self.optimizer.load_state_dict(state['optimizer'])
             # self.best_loss = state['best_loss']

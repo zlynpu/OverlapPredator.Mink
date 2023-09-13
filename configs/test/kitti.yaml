@@ -5,7 +5,7 @@ misc:
   verbose: True
   verbose_freq: 180
   snapshot_freq: 1
-  pretrain: '/home/zhangliyuan/mycode/OverlapPredator.Mink/snapshot/kitti_exp/checkpoints/IMFNet.pth'
+  pretrain: '/home/zhangliyuan/mycode/OverlapPredator.Mink/snapshot/kitti_exp/checkpoints/model_best_recall.pth'
 
 
 model:
@@ -51,7 +51,7 @@ dataset:
   dataset: kitti
   benchmark: odometryKITTI
   root: /home/zhangliyuan/dataset/Kitti/Kitti
-  voxel_size: 0.3
+  voxel_size: 0.35
   batch_size: 1 
   num_workers: 8
   augment_noise: 0.01

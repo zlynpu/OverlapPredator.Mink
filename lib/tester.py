@@ -93,9 +93,9 @@ class KITTITester(Trainer):
                 image0 = input_dict['image0'].to(self.device)
                 image1 = input_dict['image0'].to(self.device)
 
-                # src_feats, tgt_feats, scores_overlap, scores_saliency = self.model(sinput_src, sinput_tgt, image0, image1)  #[N1, C1], [N2, C2]
-                src, tgt = self.model(sinput_src, sinput_tgt, image0, image1)
-                src_feats, tgt_feats = src.F, tgt.F
+                src_feats, tgt_feats, scores_overlap, scores_saliency = self.model(sinput_src, sinput_tgt, image0, image1)  #[N1, C1], [N2, C2]
+                # src, tgt = self.model(sinput_src, sinput_tgt, image0, image1)
+                # src_feats, tgt_feats = src.F, tgt.F
                 # scores_overlap = scores_overlap.detach().cpu()
                 # scores_saliency = scores_saliency.detach().cpu()
 
@@ -105,8 +105,8 @@ class KITTITester(Trainer):
                 trans_gt.append(c_trans.cpu().numpy())
                 # src_feats, tgt_feats = feats[:len_src], feats[len_src:]
                 src_pcd , tgt_pcd = input_dict['pcd_src'], input_dict['pcd_tgt']
-                # src_overlap, tgt_overlap = scores_overlap[:len_src], scores_overlap[len_src:]
-                # src_saliency, tgt_saliency = scores_saliency[:len_src], scores_saliency[len_src:]
+                src_overlap, tgt_overlap = scores_overlap[:len_src], scores_overlap[len_src:]
+                src_saliency, tgt_saliency = scores_saliency[:len_src], scores_saliency[len_src:]
 
                 n_points = 5000
                 ########################################
